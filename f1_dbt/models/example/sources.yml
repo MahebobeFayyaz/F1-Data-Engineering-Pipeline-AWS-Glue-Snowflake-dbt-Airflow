@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: F1_DATABASE
+    schema: BRONZE
+
+    tables:
+      - name: circuits
+
+      - name: races
+
+      - name: constructors
+
+      - name: drivers
+
+      - name: results
+
+      - name: sprints

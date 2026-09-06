@@ -1,0 +1,70 @@
+version: 2
+
+models:
+
+  - name: circuits
+    columns:
+      - name: circuit_id
+        tests:
+          - not_null
+          - unique
+
+  - name: races
+    columns:
+      - name: season
+        tests:
+          - not_null
+
+      - name: round
+        tests:
+          - not_null
+
+  - name: constructors
+    columns:
+      - name: constructor_id
+        tests:
+          - not_null
+          - unique
+
+  - name: drivers
+    columns:
+      - name: driver_id
+        tests:
+          - not_null
+          - unique
+
+  - name: results
+    columns:
+      - name: season
+        tests:
+          - not_null
+
+      - name: round
+        tests:
+          - not_null
+
+      - name: driver_id
+        tests:
+          - not_null
+
+      - name: constructor_id
+        tests:
+          - not_null
+
+  - name: sprints
+    columns:
+      - name: season
+        tests:
+          - not_null
+
+      - name: round
+        tests:
+          - not_null
+
+      - name: driver_id
+        tests:
+          - not_null
+
+      - name: constructor_id
+        tests:
+          - not_null
