@@ -2,35 +2,6 @@
 
 > An end-to-end Formula 1 data engineering project that demonstrates batch ingestion, ETL processing, cloud orchestration, data warehousing, dimensional modelling, incremental transformations, and data-quality validation using **Amazon S3, AWS Glue, Apache Airflow (MWAA), Snowflake, and dbt**.
 
----
-
-## Table of Contents
-
-- [Project Overview](#project-overview)
-- [Business Objective](#business-objective)
-- [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
-- [End-to-End Data Flow](#end-to-end-data-flow)
-- [1. S3 Landing Zone](#1-s3-landing-zone)
-- [2. Airflow DAG 1 — Ingestion & Processing](#2-airflow-dag-1--ingestion--processing)
-- [3. AWS Glue ETL](#3-aws-glue-etl)
-- [4. S3 Processed Zone](#4-s3-processed-zone)
-- [5. Airflow DAG 2 — Snowflake Loading](#5-airflow-dag-2--snowflake-loading)
-- [6. Snowflake Data Warehouse](#6-snowflake-data-warehouse)
-- [7. dbt Transformations](#7-dbt-transformations)
-- [8. Bronze Layer](#8-bronze-layer)
-- [9. Silver Layer](#9-silver-layer)
-- [10. Gold Layer](#10-gold-layer)
-- [Data Model](#data-model)
-- [Incremental Processing](#incremental-processing)
-- [Data Quality & Traceability](#data-quality--traceability)
-- [Project Structure](#project-structure)
-- [Key Engineering Concepts Demonstrated](#key-engineering-concepts-demonstrated)
-- [Future Analytics](#future-analytics)
-- [Screenshots](#screenshots)
-- [Conclusion](#conclusion)
-
----
 
 ## Project Overview
 
@@ -42,27 +13,25 @@ The processed data is written back to Amazon S3 in **Parquet format**. A second 
 
 Once the raw data is available in Snowflake, **dbt** performs the warehouse transformations:
 
-```text
-S3 Landing
-    ↓
-Airflow DAG 1
-    ↓
-AWS Glue ETL
-    ↓
-S3 Processed / Parquet
-    ↓
-Airflow DAG 2
-    ↓
-Snowflake Bronze
-    ↓
-dbt Silver
-    ↓
-dbt Gold
-```
+
+
 
 The Gold layer is designed as an analytical star schema that supports downstream F1 analysis such as race results, driver performance, constructor performance, and season-level insights.
 
----
+## Tech Stack
+
+| Category | Technologies |
+|---|---|
+| **Programming Languages** | SQL, Python |
+| **Cloud Platform** | AWS |
+| **Storage** | Amazon S3 |
+| **Data Processing** | AWS Glue, PySpark |
+| **Orchestration** | Apache Airflow, Amazon MWAA |
+| **Data Warehouse** | Snowflake |
+| **Data Transformation** | dbt |
+| **Access Management** | AWS IAM |
+| **Version Control** | Git, GitHub |
+| **Development Tools** | VS Code |
 
 ## Business Objective
 
@@ -83,13 +52,14 @@ The pipeline supports analysis across:
 
 The project demonstrates how raw operational-style datasets can be transformed into a structured analytical warehouse.
 
----
+
 
 # Architecture
 
 ## High-Level Architecture
 
-![F1 Data Engineering Pipeline Architecture](docs/images/f1-pipeline-architecture.png)
+<img width="1536" height="1024" alt="ChatGPT Image Sep 6, 2026, 06_50_53 PM" src="https://github.com/user-attachments/assets/4d236354-8308-45b9-b19f-2c4058289801" />
+
 
 ### Main architecture layers
 
@@ -103,17 +73,8 @@ The project demonstrates how raw operational-style datasets can be transformed i
 | Transformation | dbt | Builds Silver and Gold models |
 | Analytics | Gold layer | Provides analytics-ready dimensional models |
 
----
 
-## Architecture Design Reference
 
-The following reference illustrates the general cloud data-pipeline architecture pattern used as inspiration for the project architecture.
-
-![Architecture design reference](docs/images/architecture-reference.png)
-
-> The reference image is included for documentation context only. The actual implementation is represented by the F1 pipeline architecture above.
-
----
 
 # End-to-End Data Flow
 
@@ -186,7 +147,8 @@ The Gold layer provides a consistent structure for downstream analytics and BI.
 
 Amazon S3 acts as the initial landing area for the raw F1 datasets.
 
-![Amazon S3 bucket](docs/images/s3-bucket.png)
+<img width="1920" height="1080" alt="Screenshot (238)" src="https://github.com/user-attachments/assets/c2af1ff4-0758-4a92-9bd6-dc5c41c5a27d" />
+
 
 The bucket contains separate `landing/` and `processed/` areas.
 
@@ -230,26 +192,10 @@ The first Airflow DAG is responsible for orchestrating the ingestion process.
 
 **DAG:** `f1_pipeline`
 
-![Airflow DAG 1](docs/images/airflow-dag1.png)
+<img width="1920" height="1080" alt="Screenshot (239)" src="https://github.com/user-attachments/assets/9685df86-31cb-4d05-b567-24ae5b53665c" />
 
-## DAG 1 flow
 
-```text
-detect_batch
-     ↓
-validate_batch
-     ↓
- ┌───────────────┬──────────────────┬─────────────────┐
- ↓               ↓                  ↓                 ↓
-circuits      constructors       drivers           races
- ↓               ↓                  ↓                 ↓
-results       sprints
- └───────────────┴──────────────────┴─────────────────┘
-                         ↓
-                  bronze_complete
-                         ↓
-              trigger_snowflake_pipeline
-```
+
 
 ### Main tasks
 
@@ -286,7 +232,8 @@ Triggers the second Airflow DAG responsible for loading the processed data into 
 
 AWS Glue performs the dataset-level ETL processing.
 
-![AWS Glue ETL job](docs/images/aws-glue-job.png)
+<img width="1920" height="1080" alt="Screenshot (240)" src="https://github.com/user-attachments/assets/f7bb748d-98fe-49d3-acf5-581206b8e8b2" />
+
 
 Each dataset has its own Glue ingestion job.
 
@@ -339,22 +286,10 @@ The second DAG is responsible for loading the processed datasets into Snowflake.
 
 **DAG:** `f1_snowflake_pipeline`
 
-![Airflow DAG 2](docs/images/airflow-dag2.png)
+<img width="1920" height="1080" alt="Screenshot (241)" src="https://github.com/user-attachments/assets/95e0b472-8cc3-4062-b8c9-118777e12fdf" />
 
-## DAG 2 flow
 
-```text
-get_batch_id
-      ↓
- ┌───────────────┬────────────────┬────────────────┐
- ↓               ↓                ↓                ↓
-load_bronze_   load_bronze_    load_bronze_    load_bronze_
-drivers        races           results          sprints
- ↓               ↓                ↓                ↓
-load_bronze_circuits
- ↓
-load_bronze_constructors
-```
+
 
 The loading tasks execute Snowflake SQL through Airflow.
 
@@ -383,7 +318,8 @@ SPRINTS
 
 Snowflake is the central analytical data warehouse for the project.
 
-![Snowflake schemas](docs/images/snowflake-schemas.png)
+<img width="1920" height="1080" alt="Screenshot (242)" src="https://github.com/user-attachments/assets/5dd608a9-a879-4195-b2d2-ce6d668142a4" />
+
 
 The warehouse is organised into separate logical layers:
 
@@ -420,7 +356,8 @@ F1_DATABASE
 
 dbt is responsible for the transformation layer inside Snowflake.
 
-![dbt model implementation](docs/images/gold-layer.png)
+<img width="1920" height="1080" alt="Screenshot (243)" src="https://github.com/user-attachments/assets/96cdf124-c871-4bfc-896c-1d49b6de363c" />
+
 
 The dbt project contains separate model directories for:
 
@@ -462,7 +399,8 @@ This allows the model to process new batches without rebuilding the entire targe
 
 The Bronze layer represents the raw data as delivered into Snowflake.
 
-![Bronze Layer](docs/images/bronze-layer.png)
+<img width="1052" height="753" alt="image" src="https://github.com/user-attachments/assets/76717f91-c679-47a9-af21-4bd92fa14cb4" />
+
 
 The Bronze tables preserve the original source-style structure and field naming.
 
@@ -492,7 +430,8 @@ The Bronze layer is intentionally close to the incoming source structure so that
 
 The Silver layer contains cleaned and standardised data.
 
-![Silver Layer](docs/images/silver-layer.png)
+<img width="1050" height="752" alt="image" src="https://github.com/user-attachments/assets/7f021090-505c-455d-bb08-273659a525d6" />
+
 
 dbt transforms the Bronze data by applying consistent naming, data cleaning and business-friendly structures.
 
@@ -531,7 +470,8 @@ These attributes improve lineage and batch-level traceability.
 
 The Gold layer reshapes the Silver data into a dimensional analytical model.
 
-![Gold Layer](docs/images/gold-layer.png)
+<img width="1052" height="478" alt="image" src="https://github.com/user-attachments/assets/494c9b88-3d16-4db6-8022-db3c4643a486" />
+
 
 The central fact table is:
 
@@ -547,165 +487,6 @@ DIM_DRIVERS
 DIM_CONSTRUCTORS
 REF_NATIONALITY_REGION
 ```
-
-## Gold schema
-
-```text
-                   DIM_RACES
-                       │
-                       │
-                       ▼
-              FACT_SESSION_RESULTS
-                 ▲              ▲
-                 │              │
-                 │              │
-          DIM_DRIVERS     DIM_CONSTRUCTORS
-```
-
-### `FACT_SESSION_RESULTS`
-
-Combines race and sprint session results and identifies the session using:
-
-```text
-session_type
-```
-
-It contains analytical measures and attributes such as:
-
-- Grid position
-- Completed laps
-- Car number
-- Points
-- Final position
-- Final position text
-- Status
-- `is_win`
-- `is_podium`
-- `has_points`
-
-### `DIM_RACES`
-
-Provides race-level descriptive information:
-
-- Season
-- Round
-- Race name
-- Race date
-- Circuit name
-- Locality
-- Country
-
-### `DIM_DRIVERS`
-
-Provides driver attributes:
-
-- Driver ID
-- Driver name
-- Date of birth
-- Nationality
-- Nationality region
-
-### `DIM_CONSTRUCTORS`
-
-Provides constructor attributes:
-
-- Constructor ID
-- Constructor name
-- Nationality
-- Nationality region
-
-### `REF_NATIONALITY_REGION`
-
-A reference mapping that groups driver and constructor nationalities into broader regions such as:
-
-```text
-Europe
-Americas
-Asia
-Africa
-Oceania
-```
-
-This avoids repeatedly implementing the same geographic classification logic in downstream models.
-
----
-
-# Data Model
-
-## Bronze
-
-```text
-CIRCUITS
-CONSTRUCTORS
-DRIVERS
-RACES
-RESULTS
-SPRINTS
-```
-
-## Silver
-
-```text
-CIRCUITS
-CONSTRUCTORS
-DRIVERS
-RACES
-RESULTS
-SPRINTS
-```
-
-The Silver layer maintains the source entities while improving consistency, quality and usability.
-
-## Gold
-
-```text
-DIM_RACES
-       │
-       │
-       ▼
-FACT_SESSION_RESULTS
-       ▲              ▲
-       │              │
-DIM_DRIVERS     DIM_CONSTRUCTORS
-```
-
-This structure follows a **star-schema approach**, with the fact table at the centre and descriptive dimensions around it.
-
----
-
-# Incremental Processing
-
-The dbt Gold models are designed to support incremental processing.
-
-For example:
-
-```sql
-{{ config(
-    materialized='incremental',
-    unique_key='driver_id',
-    incremental_strategy='merge'
-) }}
-```
-
-The transformation logic uses the latest available `batch_id` to identify new data.
-
-Conceptually:
-
-```text
-Existing Gold data
-        +
-New Bronze/Silver batch
-        ↓
-Incremental dbt transformation
-        ↓
-MERGE
-        ↓
-Updated Gold model
-```
-
-This approach reduces unnecessary full-table processing as additional batches arrive.
-
----
 
 # Data Quality & Traceability
 
@@ -916,114 +697,13 @@ A BI layer can be connected to the Gold schema for dashboards and reporting.
 
 ---
 
-# Screenshots
-
-## Architecture
-
-![F1 pipeline architecture](docs/images/f1-pipeline-architecture.png)
-
-## S3 Landing & Processed Storage
-
-![S3 bucket](docs/images/s3-bucket.png)
-
-## AWS Glue
-
-![AWS Glue](docs/images/aws-glue-job.png)
-
-## Airflow DAG 1
-
-![Airflow DAG 1](docs/images/airflow-dag1.png)
-
-## Airflow DAG 2
-
-![Airflow DAG 2](docs/images/airflow-dag2.png)
-
-## Snowflake
-
-![Snowflake schemas](docs/images/snowflake-schemas.png)
-
-## Bronze Layer
-
-![Bronze layer](docs/images/bronze-layer.png)
-
-## Silver Layer
-
-![Silver layer](docs/images/silver-layer.png)
-
-## Gold Layer
-
-![Gold layer](docs/images/gold-layer.png)
-
----
-
 # Conclusion
 
 The **F1 Data Engineering Pipeline** demonstrates an end-to-end modern data engineering workflow using AWS, Snowflake, Airflow and dbt.
 
 The pipeline takes raw Formula 1 batch files from an S3 landing zone, processes them through AWS Glue, stores the processed data as Parquet, loads the datasets into Snowflake Bronze through Airflow, and progressively transforms the data through dbt Silver and Gold layers.
 
-The final Gold layer provides a clean dimensional model suitable for analytical workloads and future BI reporting.
 
-```text
-                 F1 RAW DATA
-                     │
-                     ▼
-              ┌─────────────┐
-              │   Amazon S3 │
-              │   Landing   │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │  Airflow    │
-              │   DAG 1     │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │  AWS Glue   │
-              │  6 ETL Jobs │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │   S3        │
-              │  Processed  │
-              │  Parquet    │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │  Airflow    │
-              │   DAG 2     │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │  Snowflake  │
-              │   Bronze    │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │     dbt     │
-              │   Silver    │
-              └──────┬──────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │     dbt     │
-              │    Gold     │
-              └──────┬──────┘
-                     │
-                     ▼
-              ANALYTICS-READY
-                   DATA
-```
-
----
-
-## Technologies
 
 **Amazon S3 · AWS Glue · PySpark · Apache Airflow / MWAA · Snowflake · dbt · SQL · Python**
 
