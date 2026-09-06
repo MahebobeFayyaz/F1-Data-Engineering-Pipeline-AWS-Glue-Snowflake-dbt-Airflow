@@ -1,10 +1,11 @@
-
 from datetime import datetime
+
+import boto3
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
-import boto3
 
 
 # ---------------------------------------------------------
@@ -13,7 +14,6 @@ import boto3
 
 BUCKET_NAME = "f1-data-engineering-bucket"
 LANDING_PREFIX = "landing/"
-
 GLUE_REGION = "ap-southeast-2"
 
 
@@ -22,7 +22,11 @@ GLUE_REGION = "ap-southeast-2"
 # ---------------------------------------------------------
 
 def detect_batch(**context):
-    s3 = boto3.client("s3", region_name=GLUE_REGION)
+
+    s3 = boto3.client(
+        "s3",
+        region_name=GLUE_REGION
+    )
 
     response = s3.list_objects_v2(
         Bucket=BUCKET_NAME,
@@ -33,24 +37,29 @@ def detect_batch(**context):
     batch_folders = []
 
     for prefix in response.get("CommonPrefixes", []):
+
         folder = prefix["Prefix"]
 
-        # Example:
-        # landing/2025-01/
-        batch_id = folder.replace(LANDING_PREFIX, "").strip("/")
+        batch_id = (
+            folder
+            .replace(LANDING_PREFIX, "")
+            .strip("/")
+        )
 
         if batch_id:
             batch_folders.append(batch_id)
 
     if not batch_folders:
-        raise ValueError("No batch folders found in S3.")
+        raise ValueError(
+            "No batch folders found in S3."
+        )
 
-    # YYYY-MM format makes this chronological
     batch_id = sorted(batch_folders)[-1]
 
-    print(f"Detected BATCH_ID: {batch_id}")
+    print(
+        f"Detected BATCH_ID: {batch_id}"
+    )
 
-    # Make batch_id available to downstream Airflow tasks
     context["ti"].xcom_push(
         key="batch_id",
         value=batch_id
@@ -62,7 +71,11 @@ def detect_batch(**context):
 # ---------------------------------------------------------
 
 def validate_batch(**context):
-    s3 = boto3.client("s3", region_name=GLUE_REGION)
+
+    s3 = boto3.client(
+        "s3",
+        region_name=GLUE_REGION
+    )
 
     batch_id = context["ti"].xcom_pull(
         task_ids="detect_batch",
@@ -70,7 +83,9 @@ def validate_batch(**context):
     )
 
     if not batch_id:
-        raise ValueError("BATCH_ID was not found.")
+        raise ValueError(
+            "BATCH_ID was not found."
+        )
 
     required_objects = [
         f"landing/{batch_id}/circuits.csv",
@@ -84,9 +99,10 @@ def validate_batch(**context):
         f"landing/{batch_id}/sprints/",
     ]
 
-    # Check individual files
     for key in required_objects:
+
         try:
+
             s3.head_object(
                 Bucket=BUCKET_NAME,
                 Key=key
@@ -97,13 +113,14 @@ def validate_batch(**context):
             )
 
         except Exception as e:
+
             raise ValueError(
                 f"Required object not found: "
                 f"s3://{BUCKET_NAME}/{key}"
             ) from e
 
-    # Check results/sprints folders
     for prefix in required_prefixes:
+
         response = s3.list_objects_v2(
             Bucket=BUCKET_NAME,
             Prefix=prefix,
@@ -111,6 +128,7 @@ def validate_batch(**context):
         )
 
         if response.get("KeyCount", 0) == 0:
+
             raise ValueError(
                 f"No files found under: "
                 f"s3://{BUCKET_NAME}/{prefix}"
@@ -121,11 +139,13 @@ def validate_batch(**context):
             f"s3://{BUCKET_NAME}/{prefix}"
         )
 
-    print(f"Batch validation successful: {batch_id}")
+    print(
+        f"Batch validation successful: {batch_id}"
+    )
 
 
 # ---------------------------------------------------------
-# DAG
+# DAG 1
 # ---------------------------------------------------------
 
 with DAG(
@@ -136,15 +156,27 @@ with DAG(
     tags=["f1", "bronze", "glue"],
 ) as dag:
 
-    detect_batch = PythonOperator(
+    # -----------------------------------------------------
+    # Detect batch
+    # -----------------------------------------------------
+
+    detect_batch_task = PythonOperator(
         task_id="detect_batch",
         python_callable=detect_batch,
     )
 
-    validate_batch = PythonOperator(
+    # -----------------------------------------------------
+    # Validate batch
+    # -----------------------------------------------------
+
+    validate_batch_task = PythonOperator(
         task_id="validate_batch",
         python_callable=validate_batch,
     )
+
+    # -----------------------------------------------------
+    # Glue jobs
+    # -----------------------------------------------------
 
     circuits_ingestion = GlueJobOperator(
         task_id="circuits_ingestion",
@@ -206,6 +238,10 @@ with DAG(
         wait_for_completion=True,
     )
 
+    # -----------------------------------------------------
+    # Bronze completion
+    # -----------------------------------------------------
+
     bronze_complete = PythonOperator(
         task_id="bronze_complete",
         python_callable=lambda: print(
@@ -214,12 +250,28 @@ with DAG(
     )
 
     # -----------------------------------------------------
+    # Trigger DAG 2
+    # -----------------------------------------------------
+
+    trigger_snowflake_pipeline = TriggerDagRunOperator(
+        task_id="trigger_snowflake_pipeline",
+
+        trigger_dag_id="f1_snowflake_pipeline",
+
+        conf={
+            "batch_id": "{{ ti.xcom_pull(task_ids='detect_batch', key='batch_id') }}"
+        },
+
+        wait_for_completion=False,
+    )
+
+    # -----------------------------------------------------
     # Dependencies
     # -----------------------------------------------------
 
-    detect_batch >> validate_batch
+    detect_batch_task >> validate_batch_task
 
-    validate_batch >> [
+    validate_batch_task >> [
         circuits_ingestion,
         races_ingestion,
         constructors_ingestion,
@@ -237,3 +289,4 @@ with DAG(
         sprints_ingestion,
     ] >> bronze_complete
 
+    bronze_complete >> trigger_snowflake_pipeline
